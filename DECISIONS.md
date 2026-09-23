@@ -61,3 +61,8 @@ Tradeoff: Phase 1 games are slightly richer than real ones (no discards, no robb
 Context: The full shortage rule (a single owed player gets whatever is left) is Phase 2 work.
 Decision: If the bank can't cover everyone owed a resource on a roll, nobody gets that resource. Replaced in Phase 2.
 Tradeoff: Rare in practice this early; the one-player case is slightly wrong until then.
+
+## 2026-09-23: Phase 1 runner stops at 5000 turns as a safety net
+Context: Measured over 200 random-vs-random games: 32 games/sec, median 272 turns, 32 games over 400 turns. One game (seed 85) can never end: all players have used their cities, can't place a settlement, and sit at 9/9/8 VP.
+Decision: `sim/runner.py` stops at 5000 turns and reports no winner. This is not the game's turn cap.
+Tradeoff: Rare no-winner results until Phase 2 adds Longest Road (+2 VP) and the 400-turn cap, which end these games by the rules.
