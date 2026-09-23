@@ -27,6 +27,10 @@ def test_end_turn_passes_to_next_player_and_wraps_around():
     assert state.turn_number == 4
 
 
+def road_moves(state):
+    return [a for a in legal_actions(state) if isinstance(a, BuildRoad)]
+
+
 def main_phase_with_road_30():
     state = new_game(seed=42)
     state.phase = Phase.MAIN
@@ -60,7 +64,7 @@ def test_road_must_connect_to_something_of_yours():
 def test_no_road_moves_without_wood_and_brick():
     state = main_phase_with_road_30()
     state.hands[0] = [0, 5, 5, 5, 5]
-    assert legal_actions(state) == [EndTurn()]
+    assert road_moves(state) == []
 
 
 def test_building_a_road_pays_the_bank_and_uses_a_piece():
@@ -79,4 +83,4 @@ def test_no_road_moves_when_out_of_road_pieces():
     state = main_phase_with_road_30()
     state.hands[0] = [1, 1, 0, 0, 0]
     state.pieces_left[0] = (0, 5, 4)
-    assert legal_actions(state) == [EndTurn()]
+    assert road_moves(state) == []

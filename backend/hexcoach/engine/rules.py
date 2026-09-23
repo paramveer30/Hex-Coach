@@ -4,6 +4,7 @@ import random
 
 from hexcoach.engine.actions import (
     Action,
+    BankTrade,
     BuildCity,
     BuildRoad,
     BuildSettlement,
@@ -12,13 +13,14 @@ from hexcoach.engine.actions import (
     PlaceSetupSettlement,
     RollDice,
 )
-from hexcoach.engine.board import DESERT, NUM_RESOURCES, generate_board
+from hexcoach.engine.board import DESERT, GENERIC_PORT, NUM_RESOURCES, generate_board
 from hexcoach.engine.geometry import (
     EDGE_VERTICES,
     HEX_VERTICES,
     NUM_EDGES,
     NUM_HEXES,
     NUM_VERTICES,
+    PORT_VERTICES,
     VERTEX_EDGES,
     VERTEX_HEXES,
     VERTEX_NEIGHBORS,
@@ -99,6 +101,19 @@ def road_spot_ok(state: GameState, player: int, edge: int) -> bool:
     return False
 
 
+def trade_rate(state: GameState, player: int, resource: int) -> int:
+    rate = 4
+    for port, (a, b) in enumerate(PORT_VERTICES):
+        if state.vertex_owner[a] != player and state.vertex_owner[b] != player:
+            continue
+        kind = state.board.port_type[port]
+        if kind == resource:
+            return 2
+        if kind == GENERIC_PORT:
+            rate = 3
+    return rate
+
+
 def produce(s: GameState, roll: int) -> None:
     owed = [[0] * NUM_RESOURCES for _ in range(s.num_players)]
     for h in range(NUM_HEXES):
@@ -156,6 +171,14 @@ def main_actions(state: GameState) -> list[Action]:
             BuildCity(v)
             for v in range(NUM_VERTICES)
             if state.vertex_owner[v] == p and state.vertex_level[v] == 1
+        ]
+    for give in range(NUM_RESOURCES):
+        if hand[give] < trade_rate(state, p, give):
+            continue
+        actions += [
+            BankTrade(give, get)
+            for get in range(NUM_RESOURCES)
+            if get != give and state.bank[get] > 0
         ]
     return actions
 
@@ -223,6 +246,14 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.vertex_level[action.vertex] = 2
         roads, settlements, cities = s.pieces_left[p]
         s.pieces_left[p] = (roads, settlements + 1, cities - 1)
+        return s
+
+    if isinstance(action, BankTrade):
+        rate = trade_rate(s, p, action.give)
+        s.hands[p][action.give] -= rate
+        s.bank[action.give] += rate
+        s.hands[p][action.get] += 1
+        s.bank[action.get] -= 1
         return s
 
     if isinstance(action, EndTurn):
