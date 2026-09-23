@@ -1,0 +1,26 @@
+[project]
+name = "hexcoach"
+version = "0.1.0"
+description = "Rules engine, bots, and coach for a Catan-style hex strategy game"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.168.0",
+    "pytest>=9.1.1",
+    "ruff>=0.16.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Lets tests import `hexcoach` straight from backend/ without installing it.
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F: real errors, I: import order, B: common bug patterns, UP: modern syntax
+select = ["E", "F", "I", "B", "UP"]
