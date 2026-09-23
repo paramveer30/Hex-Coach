@@ -51,3 +51,13 @@ Tradeoff: Calling apply with an illegal action directly can produce a broken sta
 Context: The spec randomizes seat order at game start. Inside the engine, players are just 0, 1, 2.
 Decision: The engine always starts setup with player 0. The game runner shuffles which bot or human sits in which seat, using the game's seed.
 Tradeoff: None for the rules; it keeps new_game simple and the seat mapping visible to the caller.
+
+## 2026-09-23: Temporary: a 7 does nothing in Phase 1
+Context: Discards, the robber, and stealing are Phase 2 work.
+Decision: Rolling a 7 skips production and goes straight to the main phase. Replaced in Phase 2.
+Tradeoff: Phase 1 games are slightly richer than real ones (no discards, no robber blocking).
+
+## 2026-09-23: Temporary: bank shortage pays nobody
+Context: The full shortage rule (a single owed player gets whatever is left) is Phase 2 work.
+Decision: If the bank can't cover everyone owed a resource on a roll, nobody gets that resource. Replaced in Phase 2.
+Tradeoff: Rare in practice this early; the one-player case is slightly wrong until then.
