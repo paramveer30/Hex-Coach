@@ -1,7 +1,5 @@
 from hexcoach.engine.geometry import NUM_VERTICES, VERTEX_NEIGHBORS
-from hexcoach.engine.rules import settlement_spot_ok
-
-EMPTY = -1
+from hexcoach.engine.rules import EMPTY, settlement_spot_ok
 
 
 def board_with(*owned):

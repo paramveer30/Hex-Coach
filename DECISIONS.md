@@ -41,3 +41,13 @@ Tradeoff: Unbounded loop in theory, but it's fast and every valid layout stays e
 Context: In setup, the road must touch the settlement just placed, and the spec's state has no field for it. MCTS will clone state thousands of times per move.
 Decision: Added `setup_vertex` (-1 when unused). `clone()` builds a new GameState with sliced lists and a per-player copy of `hands`, sharing the frozen `Board`. Measured 0.98 us per clone.
 Tradeoff: A new field must also be added to `clone()` by hand; `test_clone_covers_every_field` catches a miss. `copy.deepcopy` would be automatic but far slower and would copy the board too.
+
+## 2026-09-23: apply() trusts that the action is legal
+Context: Bots only pick from legal_actions, and re-checking legality inside apply would slow every simulated move.
+Decision: apply() does not re-validate moves. The API layer (Phase 3) checks human moves against legal_actions before calling apply.
+Tradeoff: Calling apply with an illegal action directly can produce a broken state. Phase 2's invariant checks and property tests will catch that in testing.
+
+## 2026-09-23: Seat order randomized by the runner, not the engine
+Context: The spec randomizes seat order at game start. Inside the engine, players are just 0, 1, 2.
+Decision: The engine always starts setup with player 0. The game runner shuffles which bot or human sits in which seat, using the game's seed.
+Tradeoff: None for the rules; it keeps new_game simple and the seat mapping visible to the caller.
