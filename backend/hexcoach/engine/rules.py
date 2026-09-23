@@ -4,7 +4,9 @@ import random
 
 from hexcoach.engine.actions import (
     Action,
+    BuildCity,
     BuildRoad,
+    BuildSettlement,
     EndTurn,
     PlaceSetupRoad,
     PlaceSetupSettlement,
@@ -81,6 +83,10 @@ def settlement_spot_ok(vertex_owner: list[int], vertex: int) -> bool:
     return True
 
 
+def touches_own_road(state: GameState, player: int, vertex: int) -> bool:
+    return any(state.edge_owner[e] == player for e in VERTEX_EDGES[vertex])
+
+
 def road_spot_ok(state: GameState, player: int, edge: int) -> bool:
     if state.edge_owner[edge] != EMPTY:
         return False
@@ -139,6 +145,18 @@ def main_actions(state: GameState) -> list[Action]:
     actions: list[Action] = [EndTurn()]
     if roads_left > 0 and can_afford(hand, ROAD_COST):
         actions += [BuildRoad(e) for e in range(NUM_EDGES) if road_spot_ok(state, p, e)]
+    if settlements_left > 0 and can_afford(hand, SETTLEMENT_COST):
+        actions += [
+            BuildSettlement(v)
+            for v in range(NUM_VERTICES)
+            if settlement_spot_ok(state.vertex_owner, v) and touches_own_road(state, p, v)
+        ]
+    if cities_left > 0 and can_afford(hand, CITY_COST):
+        actions += [
+            BuildCity(v)
+            for v in range(NUM_VERTICES)
+            if state.vertex_owner[v] == p and state.vertex_level[v] == 1
+        ]
     return actions
 
 
@@ -190,6 +208,21 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.edge_owner[action.edge] = p
         roads, settlements, cities = s.pieces_left[p]
         s.pieces_left[p] = (roads - 1, settlements, cities)
+        return s
+
+    if isinstance(action, BuildSettlement):
+        pay(s, p, SETTLEMENT_COST)
+        s.vertex_owner[action.vertex] = p
+        s.vertex_level[action.vertex] = 1
+        roads, settlements, cities = s.pieces_left[p]
+        s.pieces_left[p] = (roads, settlements - 1, cities)
+        return s
+
+    if isinstance(action, BuildCity):
+        pay(s, p, CITY_COST)
+        s.vertex_level[action.vertex] = 2
+        roads, settlements, cities = s.pieces_left[p]
+        s.pieces_left[p] = (roads, settlements + 1, cities - 1)
         return s
 
     if isinstance(action, EndTurn):
