@@ -2,9 +2,17 @@
 
 import random
 
-from hexcoach.engine.actions import Action, PlaceSetupRoad, PlaceSetupSettlement, RollDice
+from hexcoach.engine.actions import (
+    Action,
+    BuildRoad,
+    EndTurn,
+    PlaceSetupRoad,
+    PlaceSetupSettlement,
+    RollDice,
+)
 from hexcoach.engine.board import DESERT, NUM_RESOURCES, generate_board
 from hexcoach.engine.geometry import (
+    EDGE_VERTICES,
     HEX_VERTICES,
     NUM_EDGES,
     NUM_HEXES,
@@ -18,6 +26,21 @@ from hexcoach.engine.state import GameState, Phase
 EMPTY = -1
 BANK_START = 19
 PIECES_START = (15, 5, 4)  # roads, settlements, cities
+
+# wood, brick, sheep, wheat, ore
+ROAD_COST = (1, 1, 0, 0, 0)
+SETTLEMENT_COST = (1, 1, 1, 1, 0)
+CITY_COST = (0, 0, 0, 2, 3)
+
+
+def can_afford(hand: list[int], cost: tuple[int, ...]) -> bool:
+    return all(have >= need for have, need in zip(hand, cost, strict=True))
+
+
+def pay(s: GameState, player: int, cost: tuple[int, ...]) -> None:
+    for r, amount in enumerate(cost):
+        s.hands[player][r] -= amount
+        s.bank[r] += amount
 
 
 def setup_order(num_players: int) -> list[int]:
@@ -58,6 +81,18 @@ def settlement_spot_ok(vertex_owner: list[int], vertex: int) -> bool:
     return True
 
 
+def road_spot_ok(state: GameState, player: int, edge: int) -> bool:
+    if state.edge_owner[edge] != EMPTY:
+        return False
+    for v in EDGE_VERTICES[edge]:
+        owner = state.vertex_owner[v]
+        if owner == player:
+            return True
+        if owner == EMPTY and any(state.edge_owner[e] == player for e in VERTEX_EDGES[v]):
+            return True
+    return False
+
+
 def produce(s: GameState, roll: int) -> None:
     owed = [[0] * NUM_RESOURCES for _ in range(s.num_players)]
     for h in range(NUM_HEXES):
@@ -92,7 +127,19 @@ def legal_actions(state: GameState) -> list[Action]:
         ]
     if state.phase == Phase.ROLL:
         return [RollDice()]
+    if state.phase == Phase.MAIN:
+        return main_actions(state)
     raise NotImplementedError(state.phase)
+
+
+def main_actions(state: GameState) -> list[Action]:
+    p = state.current_player
+    hand = state.hands[p]
+    roads_left, settlements_left, cities_left = state.pieces_left[p]
+    actions: list[Action] = [EndTurn()]
+    if roads_left > 0 and can_afford(hand, ROAD_COST):
+        actions += [BuildRoad(e) for e in range(NUM_EDGES) if road_spot_ok(state, p, e)]
+    return actions
 
 
 def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
@@ -136,6 +183,19 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         if roll != 7:
             produce(s, roll)
         s.phase = Phase.MAIN
+        return s
+
+    if isinstance(action, BuildRoad):
+        pay(s, p, ROAD_COST)
+        s.edge_owner[action.edge] = p
+        roads, settlements, cities = s.pieces_left[p]
+        s.pieces_left[p] = (roads - 1, settlements, cities)
+        return s
+
+    if isinstance(action, EndTurn):
+        s.current_player = (p + 1) % s.num_players
+        s.turn_number += 1
+        s.phase = Phase.ROLL
         return s
 
     raise NotImplementedError(type(action).__name__)
