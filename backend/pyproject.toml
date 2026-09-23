@@ -14,7 +14,6 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Lets tests import `hexcoach` straight from backend/ without installing it.
 pythonpath = ["."]
 
 [tool.ruff]
@@ -22,5 +21,4 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-# E/F: real errors, I: import order, B: common bug patterns, UP: modern syntax
 select = ["E", "F", "I", "B", "UP"]
