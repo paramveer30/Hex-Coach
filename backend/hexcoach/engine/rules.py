@@ -30,6 +30,8 @@ from hexcoach.engine.state import GameState, Phase
 EMPTY = -1
 BANK_START = 19
 PIECES_START = (15, 5, 4)  # roads, settlements, cities
+WINNING_VP = 10
+LONGEST_ROAD_VP = 2
 
 # wood, brick, sheep, wheat, ore
 ROAD_COST = (1, 1, 0, 0, 0)
@@ -133,6 +135,31 @@ def produce(s: GameState, roll: int) -> None:
         s.bank[r] -= total
 
 
+def victory_points(state: GameState, player: int) -> int:
+    vp = sum(
+        level
+        for owner, level in zip(state.vertex_owner, state.vertex_level, strict=True)
+        if owner == player
+    )
+    if state.longest_road_holder == player:
+        vp += LONGEST_ROAD_VP
+    return vp
+
+
+def is_terminal(state: GameState) -> bool:
+    return state.phase == Phase.GAME_OVER
+
+
+def winner(state: GameState) -> int | None:
+    return state.winner
+
+
+def check_win(s: GameState, player: int) -> None:
+    if victory_points(s, player) >= WINNING_VP:
+        s.winner = player
+        s.phase = Phase.GAME_OVER
+
+
 def legal_actions(state: GameState) -> list[Action]:
     if state.phase == Phase.SETUP_SETTLEMENT:
         return [
@@ -150,6 +177,8 @@ def legal_actions(state: GameState) -> list[Action]:
         return [RollDice()]
     if state.phase == Phase.MAIN:
         return main_actions(state)
+    if state.phase == Phase.GAME_OVER:
+        return []
     raise NotImplementedError(state.phase)
 
 
@@ -239,6 +268,7 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.vertex_level[action.vertex] = 1
         roads, settlements, cities = s.pieces_left[p]
         s.pieces_left[p] = (roads, settlements - 1, cities)
+        check_win(s, p)
         return s
 
     if isinstance(action, BuildCity):
@@ -246,6 +276,7 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.vertex_level[action.vertex] = 2
         roads, settlements, cities = s.pieces_left[p]
         s.pieces_left[p] = (roads, settlements + 1, cities - 1)
+        check_win(s, p)
         return s
 
     if isinstance(action, BankTrade):
