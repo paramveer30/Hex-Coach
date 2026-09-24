@@ -101,3 +101,13 @@ Tradeoff: About 19% slower, still over 4x the 20 games/sec target. Recompute onl
 Context: Cutting the holder's road can give Longest Road to a third player during someone else's turn. The spec says a player wins during their own turn.
 Decision: EndTurn runs check_win for the incoming player before the turn cap check.
 Tradeoff: That player wins at the start of their turn rather than instantly.
+
+## 2026-09-24: assert_invariants lives in the engine but runs only in tests
+Context: Spec 6.5 lists invariants to check: cards conserved, no negatives, piece limits, distance rule, roads connected, VP consistent, robber on the board.
+Decision: `engine/invariants.py` has one check per invariant plus `assert_invariants`. Tests call it after every move; the game loop does not. Measured: 100 random games, 89,628 moves, all checked in 9.9s. The roads check lets road groups join through any corner, since an opponent can legally build in the middle of your road later.
+Tradeoff: About 10x slower with checks on, so they stay out of normal play and benchmarks.
+
+## 2026-09-24: Longest Road recomputed after setup roads too
+Context: The first invariant run failed: after a setup road, the stored road length was 0 but the real length was 1, because PlaceSetupRoad never called update_longest_road.
+Decision: PlaceSetupRoad now calls update_longest_road.
+Tradeoff: None; setup roads can't reach 5, but bots and the coach will read these lengths.

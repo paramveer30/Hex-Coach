@@ -311,6 +311,7 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.edge_owner[action.edge] = p
         roads, settlements, cities = s.pieces_left[p]
         s.pieces_left[p] = (roads - 1, settlements, cities)
+        update_longest_road(s)
         s.setup_vertex = EMPTY
         s.setup_step += 1
         order = setup_order(s.num_players)
