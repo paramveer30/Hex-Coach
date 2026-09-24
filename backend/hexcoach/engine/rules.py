@@ -8,10 +8,13 @@ from hexcoach.engine.actions import (
     BuildCity,
     BuildRoad,
     BuildSettlement,
+    Discard,
     EndTurn,
+    MoveRobber,
     PlaceSetupRoad,
     PlaceSetupSettlement,
     RollDice,
+    Steal,
 )
 from hexcoach.engine.board import DESERT, GENERIC_PORT, NUM_RESOURCES, generate_board
 from hexcoach.engine.geometry import (
@@ -32,6 +35,8 @@ BANK_START = 19
 PIECES_START = (15, 5, 4)  # roads, settlements, cities
 WINNING_VP = 10
 TURN_CAP = 400
+DISCARD_LIMIT = 7
+MAX_DISCARD_CANDIDATES = 5
 LONGEST_ROAD_VP = 2
 
 # wood, brick, sheep, wheat, ore
@@ -173,6 +178,40 @@ def end_by_turn_cap(s: GameState) -> None:
     s.phase = Phase.GAME_OVER
 
 
+def player_to_move(state: GameState) -> int:
+    if state.phase == Phase.DISCARD:
+        return state.pending_discards[0]
+    return state.current_player
+
+
+def discard_candidates(hand: list[int]) -> list[Discard]:
+    # one candidate per resource we'd most like to keep: discard from the
+    # largest piles first, touching the protected resource only if we must
+    need = sum(hand) // 2
+    candidates = []
+    for protect in range(NUM_RESOURCES):
+        left = hand[:]
+        counts = [0] * NUM_RESOURCES
+        for _ in range(need):
+            r = max(range(NUM_RESOURCES), key=lambda i: (left[i] > 0, i != protect, left[i]))
+            left[r] -= 1
+            counts[r] += 1
+        discard = Discard(tuple(counts))
+        if discard not in candidates:
+            candidates.append(discard)
+    return candidates[:MAX_DISCARD_CANDIDATES]
+
+
+def steal_victims(state: GameState, hex_id: int) -> list[int]:
+    roller = state.current_player
+    victims = set()
+    for v in HEX_VERTICES[hex_id]:
+        owner = state.vertex_owner[v]
+        if owner not in (EMPTY, roller) and sum(state.hands[owner]) > 0:
+            victims.add(owner)
+    return sorted(victims)
+
+
 def legal_actions(state: GameState) -> list[Action]:
     if state.phase == Phase.SETUP_SETTLEMENT:
         return [
@@ -188,6 +227,12 @@ def legal_actions(state: GameState) -> list[Action]:
         ]
     if state.phase == Phase.ROLL:
         return [RollDice()]
+    if state.phase == Phase.DISCARD:
+        return discard_candidates(state.hands[player_to_move(state)])
+    if state.phase == Phase.MOVE_ROBBER:
+        return [MoveRobber(h) for h in range(NUM_HEXES) if h != state.robber_hex]
+    if state.phase == Phase.STEAL:
+        return [Steal(v) for v in steal_victims(state, state.robber_hex)]
     if state.phase == Phase.MAIN:
         return main_actions(state)
     if state.phase == Phase.GAME_OVER:
@@ -265,6 +310,35 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.last_roll = roll
         if roll != 7:
             produce(s, roll)
+            s.phase = Phase.MAIN
+            return s
+        s.pending_discards = [q for q in range(s.num_players) if sum(s.hands[q]) > DISCARD_LIMIT]
+        s.phase = Phase.DISCARD if s.pending_discards else Phase.MOVE_ROBBER
+        return s
+
+    if isinstance(action, Discard):
+        q = s.pending_discards.pop(0)
+        for r, n in enumerate(action.counts):
+            s.hands[q][r] -= n
+            s.bank[r] += n
+        if not s.pending_discards:
+            s.phase = Phase.MOVE_ROBBER
+        return s
+
+    if isinstance(action, MoveRobber):
+        s.robber_hex = action.hex
+        s.phase = Phase.STEAL if steal_victims(s, action.hex) else Phase.MAIN
+        return s
+
+    if isinstance(action, Steal):
+        victim_hand = s.hands[action.victim]
+        pick = rng.randrange(sum(victim_hand))
+        for r in range(NUM_RESOURCES):
+            if pick < victim_hand[r]:
+                break
+            pick -= victim_hand[r]
+        victim_hand[r] -= 1
+        s.hands[p][r] += 1
         s.phase = Phase.MAIN
         return s
 

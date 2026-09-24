@@ -20,6 +20,8 @@ def test_end_turn_passes_to_next_player_and_wraps_around():
     for _ in range(4):
         players.append(state.current_player)
         state = apply(state, RollDice(), rng)
+        while state.phase != Phase.MAIN:
+            state = apply(state, legal_actions(state)[0], rng)
         assert EndTurn() in legal_actions(state)
         state = apply(state, EndTurn(), rng)
         assert state.phase == Phase.ROLL

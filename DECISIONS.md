@@ -71,3 +71,18 @@ Tradeoff: Rare no-winner results until Phase 2 adds Longest Road (+2 VP) and the
 Context: Phase 1 paid nobody when the bank was short and had no turn cap, only a 5000-turn runner safety net.
 Decision: If the bank can't cover everyone owed a resource, a single owed player gets whatever is left; two or more get nothing. At 400 turns the game ends and the VP leader wins; a tie is a draw (winner None). The runner's safety net is removed.
 Tradeoff: Measured over 200 random-vs-random games: 136 games/sec, 31 ended by the cap (15.5%), 8 draws. That's not "rare" yet, but random bots waste turns trading. Re-check the cap rate with heuristic bots.
+
+## 2026-09-23: Discard candidates capped at 5 in legal_actions
+Context: Discarding half of a large hand has dozens of combinations, which explodes search branching.
+Decision: `discard_candidates` builds one discard per resource to protect: remove cards from the largest piles first, touching the protected resource last. Duplicates dropped, at most 5. `apply` still accepts any valid discard, so humans can pick anything.
+Tradeoff: Bots can't find unusual discards. Tests check every hand of 0-3 of each resource gives valid, distinct candidates.
+
+## 2026-09-23: player_to_move() separates "whose turn" from "who acts now"
+Context: During DISCARD, players other than the roller must act.
+Decision: `player_to_move(state)` returns the first pending discarder in DISCARD, otherwise `current_player`. The runner asks that player for a move.
+Tradeoff: Every caller that asks a bot for a move must use `player_to_move`, not `current_player`.
+
+## 2026-09-23: Sevens make random-vs-random games hit the turn cap more
+Context: Measured over 300 random-vs-random games with the full 7 rules: 104 games/sec, 154 ended by the 400-turn cap (51%), 30 draws. Card conservation checked after every move in 200 games: zero violations.
+Decision: No rule change. Random bots rarely build, hold big hands, and lose half on 7s, so they stall.
+Tradeoff: Random-vs-random cap rate is not a meaningful health metric. Re-check the cap rate with heuristic bots.

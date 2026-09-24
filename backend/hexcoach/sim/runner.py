@@ -6,7 +6,14 @@ from dataclasses import dataclass
 
 from hexcoach.bots.base import Bot
 from hexcoach.bots.random_bot import RandomBot
-from hexcoach.engine.rules import apply, is_terminal, new_game, victory_points, winner
+from hexcoach.engine.rules import (
+    apply,
+    is_terminal,
+    new_game,
+    player_to_move,
+    victory_points,
+    winner,
+)
 
 
 @dataclass
@@ -27,7 +34,7 @@ def play_game(bots: list[Bot], seed: int) -> GameResult:
     state = new_game(seed, num_players=len(seats))
     moves = 0
     while not is_terminal(state):
-        action = seats[state.current_player].choose(state, rng)
+        action = seats[player_to_move(state)].choose(state, rng)
         state = apply(state, action, rng)
         moves += 1
 
