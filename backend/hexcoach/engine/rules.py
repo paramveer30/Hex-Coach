@@ -31,6 +31,7 @@ EMPTY = -1
 BANK_START = 19
 PIECES_START = (15, 5, 4)  # roads, settlements, cities
 WINNING_VP = 10
+TURN_CAP = 400
 LONGEST_ROAD_VP = 2
 
 # wood, brick, sheep, wheat, ore
@@ -128,11 +129,15 @@ def produce(s: GameState, roll: int) -> None:
 
     for r in range(NUM_RESOURCES):
         total = sum(owed[p][r] for p in range(s.num_players))
-        if total > s.bank[r]:
+        if total <= s.bank[r]:
+            for p in range(s.num_players):
+                s.hands[p][r] += owed[p][r]
+            s.bank[r] -= total
             continue
-        for p in range(s.num_players):
-            s.hands[p][r] += owed[p][r]
-        s.bank[r] -= total
+        owed_players = [p for p in range(s.num_players) if owed[p][r] > 0]
+        if len(owed_players) == 1:
+            s.hands[owed_players[0]][r] += s.bank[r]
+            s.bank[r] = 0
 
 
 def victory_points(state: GameState, player: int) -> int:
@@ -158,6 +163,14 @@ def check_win(s: GameState, player: int) -> None:
     if victory_points(s, player) >= WINNING_VP:
         s.winner = player
         s.phase = Phase.GAME_OVER
+
+
+def end_by_turn_cap(s: GameState) -> None:
+    vps = [victory_points(s, p) for p in range(s.num_players)]
+    best = max(vps)
+    leaders = [p for p, vp in enumerate(vps) if vp == best]
+    s.winner = leaders[0] if len(leaders) == 1 else None
+    s.phase = Phase.GAME_OVER
 
 
 def legal_actions(state: GameState) -> list[Action]:
@@ -291,6 +304,8 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.current_player = (p + 1) % s.num_players
         s.turn_number += 1
         s.phase = Phase.ROLL
+        if s.turn_number >= TURN_CAP:
+            end_by_turn_cap(s)
         return s
 
     raise NotImplementedError(type(action).__name__)

@@ -2,7 +2,7 @@ import random
 from collections import Counter
 
 from hexcoach.engine.actions import RollDice
-from hexcoach.engine.board import DESERT
+from hexcoach.engine.board import DESERT, WHEAT
 from hexcoach.engine.geometry import HEX_VERTICES
 from hexcoach.engine.rules import apply, legal_actions, new_game, produce
 from hexcoach.engine.state import Phase
@@ -69,3 +69,28 @@ def test_rolls_follow_two_dice_odds():
     assert set(counts) == set(range(2, 13))
     assert counts.most_common(1)[0][0] == 7
     assert counts[2] < counts[7] / 3
+
+
+def wheat_hex_with(buildings, bank_wheat):
+    # buildings: list of (player, level) placed on opposite corners of one wheat hex
+    state = new_game(seed=42)
+    h = next(h for h in range(19) if state.board.hex_resource[h] == WHEAT)
+    for corner, (player, level) in zip((0, 3), buildings, strict=False):
+        v = HEX_VERTICES[h][corner]
+        state.vertex_owner[v] = player
+        state.vertex_level[v] = level
+    state.bank[WHEAT] = bank_wheat
+    produce(state, state.board.hex_number[h])
+    return [hand[WHEAT] for hand in state.hands], state.bank[WHEAT]
+
+
+def test_bank_pays_everyone_when_it_can():
+    assert wheat_hex_with([(0, 2), (1, 1)], bank_wheat=3) == ([2, 1, 0], 0)
+
+
+def test_bank_short_and_two_players_owed_pays_nobody():
+    assert wheat_hex_with([(0, 2), (1, 2)], bank_wheat=3) == ([0, 0, 0], 3)
+
+
+def test_bank_short_and_one_player_owed_gets_whats_left():
+    assert wheat_hex_with([(0, 2)], bank_wheat=1) == ([1, 0, 0], 0)

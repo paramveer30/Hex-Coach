@@ -1,6 +1,7 @@
 import time
 
 from hexcoach.bots.random_bot import RandomBot
+from hexcoach.engine.rules import TURN_CAP
 from hexcoach.sim.runner import play_game
 
 
@@ -12,12 +13,14 @@ def test_same_seed_plays_the_same_game():
     assert play_game(random_bots(), seed=7) == play_game(random_bots(), seed=7)
 
 
-def test_random_games_finish_with_a_10_point_winner():
-    for seed in range(50):
+def test_random_games_end_by_10_points_or_the_turn_cap():
+    for seed in range(100):
         result = play_game(random_bots(), seed)
-        assert result.winner is not None
-        assert result.vp[result.winner] >= 10
-        assert all(vp < 10 for p, vp in enumerate(result.vp) if p != result.winner)
+        assert result.turns <= TURN_CAP
+        if result.turns < TURN_CAP:
+            assert result.vp[result.winner] >= 10
+        elif result.winner is not None:
+            assert result.vp[result.winner] == max(result.vp)
 
 
 def test_at_least_20_random_games_per_second():

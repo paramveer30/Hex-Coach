@@ -66,3 +66,8 @@ Tradeoff: Rare in practice this early; the one-player case is slightly wrong unt
 Context: Measured over 200 random-vs-random games: 32 games/sec, median 272 turns, 32 games over 400 turns. One game (seed 85) can never end: all players have used their cities, can't place a settlement, and sit at 9/9/8 VP.
 Decision: `sim/runner.py` stops at 5000 turns and reports no winner. This is not the game's turn cap.
 Tradeoff: Rare no-winner results until Phase 2 adds Longest Road (+2 VP) and the 400-turn cap, which end these games by the rules.
+
+## 2026-09-23: Full bank shortage rule and 400-turn cap (replaces two temporary entries)
+Context: Phase 1 paid nobody when the bank was short and had no turn cap, only a 5000-turn runner safety net.
+Decision: If the bank can't cover everyone owed a resource, a single owed player gets whatever is left; two or more get nothing. At 400 turns the game ends and the VP leader wins; a tie is a draw (winner None). The runner's safety net is removed.
+Tradeoff: Measured over 200 random-vs-random games: 136 games/sec, 31 ended by the cap (15.5%), 8 draws. That's not "rare" yet, but random bots waste turns trading. Re-check the cap rate with heuristic bots.

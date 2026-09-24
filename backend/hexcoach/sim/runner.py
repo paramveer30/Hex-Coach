@@ -8,9 +8,6 @@ from hexcoach.bots.base import Bot
 from hexcoach.bots.random_bot import RandomBot
 from hexcoach.engine.rules import apply, is_terminal, new_game, victory_points, winner
 
-# safety net only; the real 400-turn cap is a game rule added in Phase 2
-MAX_TURNS = 5000
-
 
 @dataclass
 class GameResult:
@@ -29,7 +26,7 @@ def play_game(bots: list[Bot], seed: int) -> GameResult:
 
     state = new_game(seed, num_players=len(seats))
     moves = 0
-    while not is_terminal(state) and state.turn_number < MAX_TURNS:
+    while not is_terminal(state):
         action = seats[state.current_player].choose(state, rng)
         state = apply(state, action, rng)
         moves += 1
@@ -50,7 +47,10 @@ def main() -> None:
     args = parser.parse_args()
 
     result = play_game([RandomBot(), RandomBot(), RandomBot()], args.seed)
-    print(f"seed {result.seed}: player {result.winner} wins after {result.turns} turns")
+    if result.winner is None:
+        print(f"seed {result.seed}: draw after {result.turns} turns")
+    else:
+        print(f"seed {result.seed}: player {result.winner} wins after {result.turns} turns")
     print(f"moves played: {result.moves}")
     for p, (name, vp) in enumerate(zip(result.seats, result.vp, strict=True)):
         print(f"  player {p} ({name}): {vp} VP")
