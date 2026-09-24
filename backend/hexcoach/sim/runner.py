@@ -26,10 +26,13 @@ class GameResult:
     vp: list[int]
 
 
-def play_game(bots: list[Bot], seed: int) -> GameResult:
+def play_game(bots: list[Bot], seed: int, shuffle_seats: bool = True) -> GameResult:
     rng = random.Random(seed)
     seats = list(bots)
-    rng.shuffle(seats)
+    # tournaments pass shuffle_seats=False and rotate seats themselves, so every bot
+    # sits in every seat equally often
+    if shuffle_seats:
+        rng.shuffle(seats)
 
     state = new_game(seed, num_players=len(seats))
     moves = 0

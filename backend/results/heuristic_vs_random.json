@@ -1,0 +1,35 @@
+{
+  "bots": [
+    {
+      "bot": 0,
+      "name": "heuristic",
+      "wins": 297,
+      "win_rate": 0.99,
+      "ci_low": 0.9787406572127855,
+      "ci_high": 1.0
+    },
+    {
+      "bot": 1,
+      "name": "random",
+      "wins": 1,
+      "win_rate": 0.0033333333333333335,
+      "ci_low": 0.0,
+      "ci_high": 0.009855768688548667
+    },
+    {
+      "bot": 2,
+      "name": "random",
+      "wins": 1,
+      "win_rate": 0.0033333333333333335,
+      "ci_low": 0.0,
+      "ci_high": 0.009855768688548667
+    }
+  ],
+  "games": 300,
+  "seed": 42,
+  "rotate_seats": true,
+  "draws": 1,
+  "avg_turns": 86.17333333333333,
+  "turn_cap_hits": 2,
+  "runtime_s": 1.66
+}

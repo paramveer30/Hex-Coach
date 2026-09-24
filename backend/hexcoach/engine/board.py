@@ -55,3 +55,8 @@ def generate_board(seed: int) -> Board:
         port_type=tuple(ports),
         desert_hex=desert_hex,
     )
+
+
+def pips(number: int) -> int:
+    # dice combinations out of 36 that roll this number; the desert's 0 has none
+    return 0 if number == 0 else 6 - abs(7 - number)

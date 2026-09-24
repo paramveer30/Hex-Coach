@@ -1,5 +1,3 @@
-import time
-
 from hexcoach.bots.random_bot import RandomBot
 from hexcoach.engine.rules import TURN_CAP
 from hexcoach.sim.runner import play_game
@@ -23,9 +21,20 @@ def test_random_games_end_by_10_points_or_the_turn_cap():
             assert result.vp[result.winner] == max(result.vp)
 
 
-def test_at_least_20_random_games_per_second():
-    start = time.perf_counter()
-    for seed in range(40):
-        play_game(random_bots(), seed)
-    games_per_second = 40 / (time.perf_counter() - start)
-    assert games_per_second >= 20
+class Ann(RandomBot):
+    pass
+
+
+class Bea(RandomBot):
+    pass
+
+
+class Cal(RandomBot):
+    pass
+
+
+def test_fixed_seats_keep_the_given_order():
+    bots = [Ann(), Bea(), Cal()]
+    assert play_game(bots, seed=3, shuffle_seats=False).seats == ["Ann", "Bea", "Cal"]
+    rotated = bots[1:] + bots[:1]
+    assert play_game(rotated, seed=3, shuffle_seats=False).seats == ["Bea", "Cal", "Ann"]

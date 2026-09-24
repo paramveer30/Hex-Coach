@@ -13,6 +13,7 @@ from hexcoach.engine.board import (
     WHEAT,
     WOOD,
     generate_board,
+    pips,
     reds_adjacent,
 )
 from hexcoach.engine.geometry import HEX_NEIGHBORS
@@ -70,3 +71,8 @@ def test_board_is_immutable():
     board = generate_board(0)
     with pytest.raises(dataclasses.FrozenInstanceError):
         board.desert_hex = 3
+
+
+def test_pips_match_dice_odds():
+    assert [pips(n) for n in range(2, 13)] == [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1]
+    assert pips(0) == 0
