@@ -86,3 +86,18 @@ Tradeoff: Every caller that asks a bot for a move must use `player_to_move`, not
 Context: Measured over 300 random-vs-random games with the full 7 rules: 104 games/sec, 154 ended by the 400-turn cap (51%), 30 draws. Card conservation checked after every move in 200 games: zero violations.
 Decision: No rule change. Random bots rarely build, hold big hands, and lose half on 7s, so they stall.
 Tradeoff: Random-vs-random cap rate is not a meaningful health metric. Re-check the cap rate with heuristic bots.
+
+## 2026-09-23: Longest Road holder rules, including a cut below 5
+Context: Spec 5.8 covers ties and breaks but not a holder cut below 5 while nobody else has 5+.
+Decision: The holder loses it in that case (standard printed rules), so "you need 5+ to hold it" is always true. Full order in `update_longest_road`: nobody at 5+ means no holder; the holder keeps it while tied for best; a unique best player takes it; otherwise nobody holds it.
+Tradeoff: None beyond matching the printed rules.
+
+## 2026-09-23: Longest Road recomputed for all players after each road or settlement
+Context: The spec suggests recomputing only affected players.
+Decision: Recompute every player's length with a DFS (`engine/longest_road.py`) after each BuildRoad and BuildSettlement. Measured over 300 random games: 104 -> 84 games/sec. Capped games dropped from 154 to 103 because the +2 VP ends more games.
+Tradeoff: About 19% slower, still over 4x the 20 games/sec target. Recompute only affected players if profiling later shows it matters.
+
+## 2026-09-23: Win checked when a player's turn begins
+Context: Cutting the holder's road can give Longest Road to a third player during someone else's turn. The spec says a player wins during their own turn.
+Decision: EndTurn runs check_win for the incoming player before the turn cap check.
+Tradeoff: That player wins at the start of their turn rather than instantly.

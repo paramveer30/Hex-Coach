@@ -28,6 +28,7 @@ from hexcoach.engine.geometry import (
     VERTEX_HEXES,
     VERTEX_NEIGHBORS,
 )
+from hexcoach.engine.longest_road import longest_road_length
 from hexcoach.engine.state import GameState, Phase
 
 EMPTY = -1
@@ -38,6 +39,7 @@ TURN_CAP = 400
 DISCARD_LIMIT = 7
 MAX_DISCARD_CANDIDATES = 5
 LONGEST_ROAD_VP = 2
+LONGEST_ROAD_MIN = 5
 
 # wood, brick, sheep, wheat, ore
 ROAD_COST = (1, 1, 0, 0, 0)
@@ -162,6 +164,21 @@ def is_terminal(state: GameState) -> bool:
 
 def winner(state: GameState) -> int | None:
     return state.winner
+
+
+def update_longest_road(s: GameState) -> None:
+    lengths = [longest_road_length(s.edge_owner, s.vertex_owner, p) for p in range(s.num_players)]
+    s.longest_road_len = lengths
+    best = max(lengths)
+    holder = s.longest_road_holder
+    if best < LONGEST_ROAD_MIN:
+        s.longest_road_holder = EMPTY
+    elif holder != EMPTY and lengths[holder] == best:
+        pass
+    elif lengths.count(best) == 1:
+        s.longest_road_holder = lengths.index(best)
+    else:
+        s.longest_road_holder = EMPTY
 
 
 def check_win(s: GameState, player: int) -> None:
@@ -347,6 +364,8 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.edge_owner[action.edge] = p
         roads, settlements, cities = s.pieces_left[p]
         s.pieces_left[p] = (roads - 1, settlements, cities)
+        update_longest_road(s)
+        check_win(s, p)
         return s
 
     if isinstance(action, BuildSettlement):
@@ -355,6 +374,7 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.vertex_level[action.vertex] = 1
         roads, settlements, cities = s.pieces_left[p]
         s.pieces_left[p] = (roads, settlements - 1, cities)
+        update_longest_road(s)
         check_win(s, p)
         return s
 
@@ -378,7 +398,9 @@ def apply(state: GameState, action: Action, rng: random.Random) -> GameState:
         s.current_player = (p + 1) % s.num_players
         s.turn_number += 1
         s.phase = Phase.ROLL
-        if s.turn_number >= TURN_CAP:
+        # longest road can change hands on someone else's turn; you win when your turn starts
+        check_win(s, s.current_player)
+        if s.phase != Phase.GAME_OVER and s.turn_number >= TURN_CAP:
             end_by_turn_cap(s)
         return s
 
