@@ -111,3 +111,63 @@ Tradeoff: About 10x slower with checks on, so they stay out of normal play and b
 Context: The first invariant run failed: after a setup road, the stored road length was 0 but the real length was 1, because PlaceSetupRoad never called update_longest_road.
 Decision: PlaceSetupRoad now calls update_longest_road.
 Tradeoff: None; setup roads can't reach 5, but bots and the coach will read these lengths.
+
+## 2026-09-24: Property tests use 40/20/20 examples per run
+Context: Each hypothesis example plays a full game (up to ~450 ms with invariants on). The suite should stay fast.
+Decision: `tests/test_properties.py` runs 40 seeds for invariants, 20 for apply-never-mutates, 20 for same-seed-same-game, with `deadline=None`. Each run draws new seeds, so coverage grows over time. The full 1,000-game check runs by hand: 1,000 games, 905,493 moves, 0 crashes, 0 invariant failures, 218 s.
+Tradeoff: A single test run covers only 80 games; rare bugs may take several runs to surface.
+
+## 2026-09-24: Frontend dependencies: Next.js 16, React 19, TypeScript, Tailwind 4, zustand
+Context: The UI was built ahead of Phase 3 at Param's request. The spec picks Next.js (App Router), TypeScript, Tailwind, and zustand.
+Decision: Scaffolded with create-next-app (Next.js 16.3.6, React 19.2.8, Tailwind 4, ESLint 9) and added zustand 5. No other runtime dependencies. The scaffold's AGENTS.md is excluded via .git/info/exclude.
+Tradeoff: Next.js 16 changes some conventions from older versions (for example `params` is a Promise); we follow its bundled docs.
+
+## 2026-09-24: UI runs on exported fixtures until the API exists
+Context: The FastAPI server is Phase 3 work to build together; the UI needed real board data now.
+Decision: A one-off script exported `frontend/lib/fixtures/geometry.json` (engine geometry tables) and `sample-game.json` (a heuristic-bot game, seed 7, stopped at turn 38 mid main phase). The UI reads those; buttons show costs and disabled reasons but don't send moves. A banner says it's a preview.
+Tradeoff: The fixture can drift from the engine if geometry or state fields change; it gets replaced by `/api/geometry` and `/api/games/{id}` in Phase 3.
+
+## 2026-09-24: Board art is hand-drawn inline SVG
+Context: The board is the product's one memorable thing (spec 11.4).
+Decision: Every tile, piece, port, and the robber is inline SVG built from the engine's pixel coordinates. The coastline is the union of oversized hexes behind the tiles. Player colors come from the Okabe-Ito color-blind-safe palette (ivory, sky, rose). Transforms are rounded to 2 decimals because the server and browser computed `atan2` differently in the last digit and caused a hydration mismatch.
+Tradeoff: About 1,480 SVG nodes and 56 drop-shadow filters on the game page; measured one frame at about 20 ms. Revisit if animation later makes it janky.
+
+## 2026-09-24: Heuristic bot interpretations of spec 7.2
+Context: Spec 7.2 gives the scoring formula and priorities but leaves a few details open.
+Decision: A 2:1 port counts if the player produces that resource now or would from this spot. "Within 2 edges" means an open settlement spot at either end of the new road or one step past it. A bank trade is made whenever it makes a city, settlement, or road affordable right away (checked in that priority order). Discards pick among the 5 engine candidates the one that keeps the most toward the current goal (city, else settlement, else road), so the bot only ever returns legal actions. Ties go to the first option in legal_actions order, so the bot is deterministic.
+Tradeoff: No lookahead and no longest-road planning. Weights stay at the spec's starting values (1.5, 1, 2) until a tournament exists to tune them.
+
+## 2026-09-24: Phase 2 benchmark results (heuristic bot, speed, cap rate)
+Context: Phase 2 done checks and the open question about the turn cap rate.
+Decision: Recorded, fixed seeds 0..199 or 0..299. Heuristic vs 2 random: 197/200 wins, 98.5% +/- 1.7% (95% CI), 1 draw, 4 capped. Heuristic x3: median 86 turns, 0 of 300 capped, 0 draws, wins by seat 109/106/85. Random x3: median 336 turns, 103 of 300 capped. Speed, random x3: 41 games/s tonight versus 84 earlier; the code at commit 092f563 measured 42 games/s back to back with the current code (identical 95,756 total turns), so the drop is the machine throttling while locked, not the engine.
+Tradeoff: The turn cap is rare with sensible bots, so no rule change. Re-measure speed on a plugged-in, awake machine before quoting it in the README.
+
+## 2026-09-24: UI redesign: dark table theme, less text, teaching highlights
+Context: Param found the first UI crowded, text-heavy, and dull.
+Decision: A dark "game table" theme (tokens in `frontend/app/globals.css`: table #0C171D, surface #132730, gold accent #F0C05A; tile and piece colors unchanged), a compact sidebar, the player's hand as cards in the bottom dock, and board highlights. The sample fixture now includes the engine's real legal build spots, so choosing a build pulses exactly those spots and tapping one shows a ghost piece. The opening trainer shows the spec 7.2 quick score as a heatmap on a fresh board (seed 11). The palette change is pending approval as a spec 11.4 change.
+Tradeoff: The fixture must be re-exported when state fields change; replaced by the API in Phase 3.
+
+## 2026-09-24: Coach nudges in the UI are rules-level only
+Context: Four coach modes (off, ask, nudge, always) were requested; real move advice needs the search bot (Phase 4) and the coach (Phase 6).
+Decision: For now, Nudge and Always only say what the rules allow ("you can afford a settlement, and 1 spot is open"), computed from the engine's legal spots. The Hint button stays disabled until search exists. The modes are pending approval as a Phase 6 spec change.
+Tradeoff: No strategic advice yet; the UI plumbing (modes, banner, highlights) is ready for it.
+
+## 2026-09-24: CI on GitHub Actions
+Context: Spec 12 asks for ruff, pytest, a 200-game smoke test, and frontend type check and lint on every push.
+Decision: `.github/workflows/ci.yml` with two jobs. Backend: `uv sync --locked`, ruff check and format, pytest, 200 random games. Frontend: `npm ci`, `next typegen` (Next 16 generates the route types `layout.tsx` uses), `tsc --noEmit`, lint.
+Tradeoff: `test_at_least_20_random_games_per_second` depends on machine speed and may be flaky on shared CI runners (audit M4).
+
+## 2026-09-24: Tournament uses a paired, rotated seating schedule
+Context: Identical heuristic bots won 109 / 106 / 85 games by seat (300 games), and boards vary in how much they favor each seat. Spec 9.1 asks for --rotate-seats.
+Decision: With rotation, each board seed is played once per seating (3 games for 3 bots), each bot moving one seat along: A B C, B C A, C A B. Games must be a multiple of the bot count. `play_game` gained `shuffle_seats=False` so the tournament controls seating. Win rates are reported with a 95% normal-approximation interval, clipped to [0, 1].
+Tradeoff: Games come in multiples of 3; the normal approximation is loose near 0% and 100% (a Wilson interval would be tighter there), fine for the rates we report.
+
+## 2026-09-24: Speed is benchmarked, not unit-tested
+Context: `test_at_least_20_random_games_per_second` measured 84, 41, and 13.6 games/s on the same code depending on whether the laptop was throttling, so it failed with no code change (audit M4).
+Decision: Removed it from the test suite. `uv run python -m hexcoach.sim.bench` reports random games per second against the target of 20. Measured today: 85 games/s.
+Tradeoff: A speed regression no longer fails CI; it shows up when we run the benchmark and log the number here.
+
+## 2026-09-24: Phase 2 benchmark: heuristic vs 2 random, rotated
+Context: Phase 2 done check (more than 90% against random bots), now with seat rotation and confidence intervals.
+Decision: `python -m hexcoach.sim.tournament --bots heuristic,random,random --games 300 --rotate-seats --seed 42` gave 297 wins, 99.0% (95% CI 97.9% to 100.0%), 1 draw, 2 turn-cap hits, 86 turns on average, 1.66 s. Results saved to `backend/results/heuristic_vs_random.json`.
+Tradeoff: None; this is the baseline the MCTS bot must beat in Phase 4.

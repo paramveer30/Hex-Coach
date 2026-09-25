@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install dependencies from the lockfile
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Tests
+        run: uv run pytest -q
+      - name: 200-game random smoke test
+        run: |
+          uv run python -c "
+          from hexcoach.bots.random_bot import RandomBot
+          from hexcoach.sim.runner import play_game
+          results = [play_game([RandomBot(), RandomBot(), RandomBot()], seed) for seed in range(200)]
+          print(f'200 games finished, {sum(r.winner is None for r in results)} draws')
+          "
