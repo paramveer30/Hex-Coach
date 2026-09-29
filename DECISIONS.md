@@ -171,3 +171,8 @@ Tradeoff: A speed regression no longer fails CI; it shows up when we run the ben
 Context: Phase 2 done check (more than 90% against random bots), now with seat rotation and confidence intervals.
 Decision: `python -m hexcoach.sim.tournament --bots heuristic,random,random --games 300 --rotate-seats --seed 42` gave 297 wins, 99.0% (95% CI 97.9% to 100.0%), 1 draw, 2 turn-cap hits, 86 turns on average, 1.66 s. Results saved to `backend/results/heuristic_vs_random.json`.
 Tradeoff: None; this is the baseline the MCTS bot must beat in Phase 4.
+
+## 2026-09-29: Server dependencies: FastAPI, uvicorn, httpx
+Context: Phase 3 needs a web API and WebSockets (spec section 3).
+Decision: Added fastapi 0.141.1 and uvicorn[standard] 0.54.0 (the standard extra brings WebSocket support) as runtime dependencies, and httpx 0.28.1 as a dev dependency for FastAPI's TestClient. Pydantic comes with FastAPI.
+Tradeoff: The engine still has no dependencies; only the api/ layer uses these.

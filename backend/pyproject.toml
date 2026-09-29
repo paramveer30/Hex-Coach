@@ -3,10 +3,14 @@ name = "hexcoach"
 version = "0.1.0"
 description = "Rules engine, bots, and coach for a Catan-style hex strategy game"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "fastapi>=0.141.1",
+    "uvicorn[standard]>=0.54.0",
+]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "hypothesis>=6.168.0",
     "pytest>=9.1.1",
     "ruff>=0.16.8",
