@@ -176,3 +176,13 @@ Tradeoff: None; this is the baseline the MCTS bot must beat in Phase 4.
 Context: Phase 3 needs a web API and WebSockets (spec section 3).
 Decision: Added fastapi 0.141.1 and uvicorn[standard] 0.54.0 (the standard extra brings WebSocket support) as runtime dependencies, and httpx 0.28.1 as a dev dependency for FastAPI's TestClient. Pydantic comes with FastAPI.
 Tradeoff: The engine still has no dependencies; only the api/ layer uses these.
+
+## 2026-10-01: Sessions expire lazily, each with its own lock and seeded rng
+Context: Spec 10 keeps games in memory with a 2-hour TTL and requires that two requests can't change one game at the same time.
+Decision: `api/sessions.py` purges expired sessions whenever the store is used (create or get) instead of running a background sweeper; the 2 hours count from the last use, not from creation. Each session gets its own `asyncio.Lock` and a `random.Random(seed)` so dice stay reproducible per game. Game IDs are `secrets.token_urlsafe(9)` so one player can't guess another's game.
+Tradeoff: An idle server keeps expired games in memory until the next request touches the store; at our traffic that's a few KB. No cap on the number of live games yet, so a script spamming game creation could grow memory for 2 hours.
+
+## 2026-10-01: Game API shape: human in seat 0, easy only, camelCase, all endpoints async
+Context: Spec 10 returns a `human_seat` but doesn't say how it's chosen, and lists difficulties that need the Phase 4 search bot.
+Decision: The human always sits in seat 0 (pending Param's approval; alternatives were a seed-based random seat or a player-chosen seat). `difficulty` accepts only "easy" (2 heuristic bots); anything else is a 422. Create and get both return `{gameId, humanSeat, state, legalActions}` in camelCase to match `frontend/lib/types.ts`; `legalActions` is empty unless the human is the player to move. Every endpoint is `async def` so all session store access happens on the event loop thread; plain `def` endpoints run in a thread pool and could race on the sessions dict.
+Tradeoff: Seat 0 always places first, which is the strongest seat in our heuristic tournament (109 of 300 wins), so the human practices only from that seat. CPU-heavy work added later must go through `asyncio.to_thread` or it blocks every game.
